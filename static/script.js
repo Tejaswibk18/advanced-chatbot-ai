@@ -1,5 +1,13 @@
+// =========================================================
+// Conversation
+// =========================================================
+
 let conversationId = crypto.randomUUID();
 
+
+// =========================================================
+// DOM Elements
+// =========================================================
 
 const chatForm =
     document.getElementById("chat-form");
@@ -19,29 +27,32 @@ const newChatButton =
 const errorMessage =
     document.getElementById("error-message");
 
+const recentChats =
+    document.getElementById("recent-chats");
 
-/* =========================
-   ADD MESSAGE
-========================= */
+
+// =========================================================
+// Add Message
+// =========================================================
 
 function addMessage(
     role,
     content = ""
 ) {
 
-    const message =
+    const messageElement =
         document.createElement("div");
 
-    message.classList.add(
+    messageElement.classList.add(
         "message",
         role
     );
 
 
-    const messageContent =
+    const contentElement =
         document.createElement("div");
 
-    messageContent.classList.add(
+    contentElement.classList.add(
         "message-content"
     );
 
@@ -51,39 +62,39 @@ function addMessage(
         content
     ) {
 
-        messageContent.innerHTML =
+        contentElement.innerHTML =
             DOMPurify.sanitize(
                 marked.parse(content)
             );
 
     } else {
 
-        messageContent.textContent =
+        contentElement.textContent =
             content;
 
     }
 
 
-    message.appendChild(
-        messageContent
+    messageElement.appendChild(
+        contentElement
     );
 
 
     chatMessages.appendChild(
-        message
+        messageElement
     );
 
 
     scrollToBottom();
 
 
-    return messageContent;
+    return contentElement;
 }
 
 
-/* =========================
-   SCROLL
-========================= */
+// =========================================================
+// Scroll To Bottom
+// =========================================================
 
 function scrollToBottom() {
 
@@ -92,11 +103,13 @@ function scrollToBottom() {
 }
 
 
-/* =========================
-   ERROR
-========================= */
+// =========================================================
+// Error Handling
+// =========================================================
 
-function showError(message) {
+function showError(
+    message
+) {
 
     errorMessage.textContent =
         message;
@@ -117,25 +130,25 @@ function hideError() {
 }
 
 
-/* =========================
-   TYPING INDICATOR
-========================= */
+// =========================================================
+// Typing Indicator
+// =========================================================
 
 function showTypingIndicator() {
 
-    const message =
+    const messageElement =
         document.createElement("div");
 
-    message.classList.add(
+    messageElement.classList.add(
         "message",
         "assistant"
     );
 
-    message.id =
+    messageElement.id =
         "typing-indicator";
 
 
-    message.innerHTML = `
+    messageElement.innerHTML = `
         <div class="message-content">
             <div class="typing">
                 <span></span>
@@ -147,7 +160,7 @@ function showTypingIndicator() {
 
 
     chatMessages.appendChild(
-        message
+        messageElement
     );
 
 
@@ -170,11 +183,11 @@ function removeTypingIndicator() {
 }
 
 
-/* =========================
-   CLEAR CHAT UI
-========================= */
+// =========================================================
+// Welcome Screen
+// =========================================================
 
-function clearChatUI() {
+function showWelcomeMessage() {
 
     chatMessages.innerHTML = `
         <div class="welcome-message">
@@ -198,13 +211,237 @@ function clearChatUI() {
 }
 
 
-/* =========================
-   SEND MESSAGE
-========================= */
+// =========================================================
+// Load Recent Chats
+// =========================================================
+
+async function loadRecentChats() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/chat/recent"
+            );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                "Failed to load recent chats."
+            );
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        recentChats.innerHTML = "";
+
+
+        const conversations =
+            data.conversations || [];
+
+
+        if (
+            conversations.length === 0
+        ) {
+
+            recentChats.innerHTML = `
+                <div class="empty-chats">
+                    No recent chats
+                </div>
+            `;
+
+            return;
+        }
+
+
+        conversations.forEach(
+            conversation => {
+
+                const chatButton =
+                    document.createElement(
+                        "button"
+                    );
+
+
+                chatButton.classList.add(
+                    "recent-chat"
+                );
+
+
+                chatButton.type =
+                    "button";
+
+
+                chatButton.textContent =
+                    conversation.title;
+
+
+                chatButton.title =
+                    conversation.title;
+
+
+                if (
+                    conversation.conversation_id ===
+                    conversationId
+                ) {
+
+                    chatButton.classList.add(
+                        "active"
+                    );
+
+                }
+
+
+                chatButton.addEventListener(
+                    "click",
+                    () => {
+
+                        loadConversation(
+                            conversation.conversation_id
+                        );
+
+                    }
+                );
+
+
+                recentChats.appendChild(
+                    chatButton
+                );
+
+            }
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Failed to load recent chats:",
+            error
+        );
+
+    }
+}
+
+
+// =========================================================
+// Load Previous Conversation
+// =========================================================
+
+async function loadConversation(
+    id
+) {
+
+    hideError();
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/chat/${id}`
+            );
+
+
+        if (!response.ok) {
+
+            const errorData =
+                await response.json()
+                    .catch(
+                        () => ({})
+                    );
+
+
+            throw new Error(
+                errorData.detail ||
+                "Failed to load conversation."
+            );
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        conversationId =
+            data.conversation_id;
+
+
+        chatMessages.innerHTML = "";
+
+
+        const messages =
+            data.messages || [];
+
+
+        if (
+            messages.length === 0
+        ) {
+
+            showWelcomeMessage();
+
+            return;
+
+        }
+
+
+        messages.forEach(
+            message => {
+
+                let role =
+                    message.role;
+
+
+                if (
+                    role === "model"
+                ) {
+
+                    role = "assistant";
+
+                }
+
+
+                addMessage(
+                    role,
+                    message.content
+                );
+
+            }
+        );
+
+
+        await loadRecentChats();
+
+
+        messageInput.focus();
+
+    } catch (error) {
+
+        console.error(
+            "Failed to load conversation:",
+            error
+        );
+
+
+        showError(
+            error.message
+        );
+
+    }
+}
+
+
+// =========================================================
+// Send Message
+// =========================================================
 
 chatForm.addEventListener(
     "submit",
-    async (event) => {
+    async event => {
 
         event.preventDefault();
 
@@ -223,36 +460,24 @@ chatForm.addEventListener(
         hideError();
 
 
-        /*
-         * Display user message
-         */
-
+        // Show user message immediately.
         addMessage(
             "user",
             message
         );
 
 
-        /*
-         * Clear input
-         */
-
+        // Clear input.
         messageInput.value = "";
 
 
-        /*
-         * Disable input
-         */
-
+        // Disable input while generating.
         sendButton.disabled = true;
 
         messageInput.disabled = true;
 
 
-        /*
-         * Show typing indicator
-         */
-
+        // Show typing indicator.
         showTypingIndicator();
 
 
@@ -269,63 +494,55 @@ chatForm.addEventListener(
                                 "application/json"
                         },
 
-                        body: JSON.stringify({
+                        body: JSON.stringify(
+                            {
+                                conversation_id:
+                                    conversationId,
 
-                            conversation_id:
-                                conversationId,
-
-                            message:
-                                message
-
-                        })
+                                message:
+                                    message
+                            }
+                        )
                     }
                 );
 
 
-            /*
-             * Check HTTP status
-             */
-
             if (!response.ok) {
 
-                let errorText =
+                let errorMessageText =
                     "Unable to get a response.";
+
 
                 try {
 
                     const errorData =
                         await response.json();
 
-                    if (errorData.detail) {
 
-                        errorText =
+                    if (
+                        errorData.detail
+                    ) {
+
+                        errorMessageText =
                             errorData.detail;
 
                     }
 
                 } catch {
 
-                    // Ignore JSON parsing error
-
+                    // Ignore JSON parsing error.
                 }
 
 
                 throw new Error(
-                    errorText
+                    errorMessageText
                 );
+
             }
 
 
-            /*
-             * Remove typing indicator
-             */
-
             removeTypingIndicator();
 
-
-            /*
-             * Create empty assistant message
-             */
 
             const assistantMessage =
                 addMessage(
@@ -334,15 +551,12 @@ chatForm.addEventListener(
                 );
 
 
-            /*
-             * Get response stream
-             */
-
             if (!response.body) {
 
                 throw new Error(
-                    "Streaming is not supported by the server."
+                    "Streaming is not supported by the browser."
                 );
+
             }
 
 
@@ -356,10 +570,6 @@ chatForm.addEventListener(
 
             let fullResponse = "";
 
-
-            /*
-             * Read Gemini chunks
-             */
 
             while (true) {
 
@@ -385,30 +595,15 @@ chatForm.addEventListener(
                     );
 
 
-                /*
-                 * Add chunk to complete response
-                 */
+                fullResponse +=
+                    chunk;
 
-                fullResponse += chunk;
-
-
-                /*
-                 * Convert Markdown → HTML
-                 */
-
-                const renderedHTML =
-                    marked.parse(
-                        fullResponse
-                    );
-
-
-                /*
-                 * Sanitize generated HTML
-                 */
 
                 assistantMessage.innerHTML =
                     DOMPurify.sanitize(
-                        renderedHTML
+                        marked.parse(
+                            fullResponse
+                        )
                     );
 
 
@@ -417,10 +612,7 @@ chatForm.addEventListener(
             }
 
 
-            /*
-             * Flush decoder
-             */
-
+            // Process any remaining decoder data.
             const remainingText =
                 decoder.decode();
 
@@ -429,6 +621,7 @@ chatForm.addEventListener(
 
                 fullResponse +=
                     remainingText;
+
 
                 assistantMessage.innerHTML =
                     DOMPurify.sanitize(
@@ -439,6 +632,9 @@ chatForm.addEventListener(
 
             }
 
+
+            // Refresh sidebar.
+            await loadRecentChats();
 
         } catch (error) {
 
@@ -451,26 +647,18 @@ chatForm.addEventListener(
             removeTypingIndicator();
 
 
-            /*
-             * If an assistant message was
-             * partially created, don't leave
-             * the user confused.
-             */
-
             showError(
                 error.message ||
-                "Unable to get a response. Please try again."
+                "Something went wrong."
             );
 
         } finally {
 
-            /*
-             * Re-enable input
-             */
+            sendButton.disabled =
+                false;
 
-            sendButton.disabled = false;
-
-            messageInput.disabled = false;
+            messageInput.disabled =
+                false;
 
             messageInput.focus();
 
@@ -480,54 +668,45 @@ chatForm.addEventListener(
 );
 
 
-/* =========================
-   NEW CHAT
-========================= */
+// =========================================================
+// New Chat
+// =========================================================
 
 newChatButton.addEventListener(
     "click",
-    async () => {
+    () => {
 
         hideError();
 
 
-        try {
-
-            await fetch(
-                `/chat/${conversationId}`,
-                {
-                    method: "DELETE"
-                }
-            );
-
-        } catch (error) {
-
-            console.error(
-                "Failed to clear conversation:",
-                error
-            );
-
-        }
-
-
-        /*
-         * Generate new conversation ID
-         */
+        // Generate a new conversation ID.
+        //
+        // IMPORTANT:
+        // We DO NOT delete the previous conversation.
 
         conversationId =
             crypto.randomUUID();
 
 
-        /*
-         * Clear UI
-         */
-
-        clearChatUI();
+        // Clear only the current UI.
+        showWelcomeMessage();
 
 
-        /*
-         * Focus input
-         */
+        // Remove active state from old chats.
+        document
+            .querySelectorAll(
+                ".recent-chat"
+            )
+            .forEach(
+                button => {
+
+                    button.classList.remove(
+                        "active"
+                    );
+
+                }
+            );
+
 
         messageInput.focus();
 
@@ -535,8 +714,11 @@ newChatButton.addEventListener(
 );
 
 
-/* =========================
-   INITIALIZE
-========================= */
+// =========================================================
+// Initial Application Load
+// =========================================================
+
+loadRecentChats();
 
 messageInput.focus();
+

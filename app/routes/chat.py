@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException
+
 from fastapi.responses import StreamingResponse
 
 from app.schemas.chat import (
@@ -11,8 +12,8 @@ from app.services.llm_service import (
     generate_stream
 )
 
-from app.services.memory_service import (
-    MemoryService
+from app.services.chat_history_service import (
+    ChatHistoryService
 )
 
 
@@ -22,8 +23,14 @@ router = APIRouter(
 )
 
 
-memory_service = MemoryService()
+chat_history_service = (
+    ChatHistoryService()
+)
 
+
+# ---------------------------------------------------------
+# Send message
+# ---------------------------------------------------------
 
 @router.post(
     "/",
@@ -35,29 +42,51 @@ async def chat(
 
     try:
 
-        history = memory_service.get_history(
+        conversation_id = (
             request.conversation_id
         )
 
+        # Get previous messages.
+        history = (
+            chat_history_service
+            .get_messages(
+                conversation_id
+            )
+        )
+
+        # Generate response.
         response = generate_response(
             message=request.message,
             history=history
         )
 
-        memory_service.add_message(
-            conversation_id=request.conversation_id,
+        # Create conversation if this
+        # is the first message.
+        if not history:
+
+            title = request.message[:50]
+
+            chat_history_service.create_conversation(
+                conversation_id=conversation_id,
+                title=title
+            )
+
+        # Save user message.
+        chat_history_service.add_message(
+            conversation_id=conversation_id,
             role="user",
             content=request.message
         )
 
-        memory_service.add_message(
-            conversation_id=request.conversation_id,
+        # Save assistant response.
+        chat_history_service.add_message(
+            conversation_id=conversation_id,
             role="model",
             content=response
         )
 
         return ChatResponse(
-            conversation_id=request.conversation_id,
+            conversation_id=conversation_id,
             response=response
         )
 
@@ -65,17 +94,33 @@ async def chat(
 
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to generate response: {error}"
+            detail=(
+                f"Failed to generate response: "
+                f"{error}"
+            )
         )
 
 
-@router.post("/stream")
+# ---------------------------------------------------------
+# Streaming chat
+# ---------------------------------------------------------
+
+@router.post(
+    "/stream"
+)
 async def chat_stream(
     request: ChatRequest
 ):
 
-    history = memory_service.get_history(
+    conversation_id = (
         request.conversation_id
+    )
+
+    history = (
+        chat_history_service
+        .get_messages(
+            conversation_id
+        )
     )
 
     generated_chunks = []
@@ -99,21 +144,35 @@ async def chat_stream(
                 generated_chunks
             )
 
-            memory_service.add_message(
-                conversation_id=request.conversation_id,
+            # Create conversation if needed.
+            if not history:
+
+                title = request.message[:50]
+
+                chat_history_service.create_conversation(
+                    conversation_id=conversation_id,
+                    title=title
+                )
+
+            # Save user message.
+            chat_history_service.add_message(
+                conversation_id=conversation_id,
                 role="user",
                 content=request.message
             )
 
-            memory_service.add_message(
-                conversation_id=request.conversation_id,
+            # Save assistant message.
+            chat_history_service.add_message(
+                conversation_id=conversation_id,
                 role="model",
                 content=complete_response
             )
 
         except Exception as error:
 
-            yield f"\n\n[ERROR] {error}"
+            yield (
+                f"\n\n[ERROR] {error}"
+            )
 
     return StreamingResponse(
         stream(),
@@ -121,18 +180,51 @@ async def chat_stream(
     )
 
 
-@router.delete(
+# ---------------------------------------------------------
+# Get recent chats
+# ---------------------------------------------------------
+
+@router.get(
+    "/recent"
+)
+async def recent_chats():
+
+    return {
+        "conversations":
+            chat_history_service
+            .get_recent_conversations()
+    }
+
+
+# ---------------------------------------------------------
+# Get previous conversation
+# ---------------------------------------------------------
+
+@router.get(
     "/{conversation_id}"
 )
-async def clear_chat(
+async def get_conversation(
     conversation_id: str
 ):
 
-    memory_service.clear_conversation(
-        conversation_id
+    messages = (
+        chat_history_service
+        .get_messages(
+            conversation_id
+        )
     )
 
+    if not messages:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Conversation not found."
+        )
+
     return {
-        "message": "Conversation cleared",
-        "conversation_id": conversation_id
+        "conversation_id":
+            conversation_id,
+
+        "messages":
+            messages
     }
