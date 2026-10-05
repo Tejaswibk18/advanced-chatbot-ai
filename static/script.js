@@ -2,7 +2,11 @@
 // Conversation
 // =========================================================
 
-let conversationId = crypto.randomUUID();
+let conversationId =
+    crypto.randomUUID();
+
+let documentId = null;
+let documentName = null;
 
 
 // =========================================================
@@ -30,6 +34,23 @@ const errorMessage =
 const recentChats =
     document.getElementById("recent-chats");
 
+// Document elements
+
+const uploadDocumentButton =
+    document.getElementById("upload-document");
+
+const documentInput =
+    document.getElementById("document-input");
+
+const documentInfo =
+    document.getElementById("document-info");
+
+const documentNameElement =
+    document.getElementById("document-name");
+
+const removeDocumentButton =
+    document.getElementById("remove-document");
+
 
 // =========================================================
 // Add Message
@@ -48,14 +69,12 @@ function addMessage(
         role
     );
 
-
     const contentElement =
         document.createElement("div");
 
     contentElement.classList.add(
         "message-content"
     );
-
 
     if (
         role === "assistant" &&
@@ -71,24 +90,86 @@ function addMessage(
 
         contentElement.textContent =
             content;
-
     }
-
 
     messageElement.appendChild(
         contentElement
     );
 
+    chatMessages.appendChild(
+        messageElement
+    );
+
+    scrollToBottom();
+
+    return contentElement;
+}
+
+
+// =========================================================
+// Add Generated Image
+// =========================================================
+
+function addGeneratedImage(
+    imageData
+) {
+
+    const messageElement =
+        document.createElement("div");
+
+    messageElement.classList.add(
+        "message",
+        "assistant"
+    );
+
+    const contentElement =
+        document.createElement("div");
+
+    contentElement.classList.add(
+        "message-content"
+    );
+
+    const imageWrapper =
+        document.createElement("div");
+
+    imageWrapper.classList.add(
+        "generated-image-wrapper"
+    );
+
+    const image =
+        document.createElement("img");
+
+    image.classList.add(
+        "generated-image"
+    );
+
+    image.src =
+        imageData.url;
+
+    image.alt =
+        imageData.prompt ||
+        "Generated image";
+
+    image.loading =
+        "lazy";
+
+    imageWrapper.appendChild(
+        image
+    );
+
+    contentElement.appendChild(
+        imageWrapper
+    );
+
+    messageElement.appendChild(
+        contentElement
+    );
 
     chatMessages.appendChild(
         messageElement
     );
 
-
     scrollToBottom();
-
-
-    return contentElement;
 }
 
 
@@ -122,7 +203,8 @@ function showError(
 
 function hideError() {
 
-    errorMessage.textContent = "";
+    errorMessage.textContent =
+        "";
 
     errorMessage.classList.add(
         "hidden"
@@ -147,7 +229,6 @@ function showTypingIndicator() {
     messageElement.id =
         "typing-indicator";
 
-
     messageElement.innerHTML = `
         <div class="message-content">
             <div class="typing">
@@ -158,11 +239,9 @@ function showTypingIndicator() {
         </div>
     `;
 
-
     chatMessages.appendChild(
         messageElement
     );
-
 
     scrollToBottom();
 }
@@ -176,9 +255,7 @@ function removeTypingIndicator() {
         );
 
     if (indicator) {
-
         indicator.remove();
-
     }
 }
 
@@ -224,26 +301,21 @@ async function loadRecentChats() {
                 "/chat/recent"
             );
 
-
         if (!response.ok) {
 
             throw new Error(
                 "Failed to load recent chats."
             );
-
         }
-
 
         const data =
             await response.json();
 
-
-        recentChats.innerHTML = "";
-
+        recentChats.innerHTML =
+            "";
 
         const conversations =
             data.conversations || [];
-
 
         if (
             conversations.length === 0
@@ -258,7 +330,6 @@ async function loadRecentChats() {
             return;
         }
 
-
         conversations.forEach(
             conversation => {
 
@@ -267,23 +338,18 @@ async function loadRecentChats() {
                         "button"
                     );
 
-
                 chatButton.classList.add(
                     "recent-chat"
                 );
 
-
                 chatButton.type =
                     "button";
-
 
                 chatButton.textContent =
                     conversation.title;
 
-
                 chatButton.title =
                     conversation.title;
-
 
                 if (
                     conversation.conversation_id ===
@@ -293,9 +359,7 @@ async function loadRecentChats() {
                     chatButton.classList.add(
                         "active"
                     );
-
                 }
-
 
                 chatButton.addEventListener(
                     "click",
@@ -304,15 +368,12 @@ async function loadRecentChats() {
                         loadConversation(
                             conversation.conversation_id
                         );
-
                     }
                 );
-
 
                 recentChats.appendChild(
                     chatButton
                 );
-
             }
         );
 
@@ -322,7 +383,6 @@ async function loadRecentChats() {
             "Failed to load recent chats:",
             error
         );
-
     }
 }
 
@@ -337,7 +397,6 @@ async function loadConversation(
 
     hideError();
 
-
     try {
 
         const response =
@@ -345,38 +404,48 @@ async function loadConversation(
                 `/chat/${id}`
             );
 
-
         if (!response.ok) {
 
             const errorData =
-                await response.json()
+                await response
+                    .json()
                     .catch(
                         () => ({})
                     );
-
 
             throw new Error(
                 errorData.detail ||
                 "Failed to load conversation."
             );
-
         }
-
 
         const data =
             await response.json();
 
-
         conversationId =
             data.conversation_id;
 
+        // Previous version of the UI does not
+        // persist document_id yet.
+        documentId = null;
+        documentName = null;
 
-        chatMessages.innerHTML = "";
+        if (documentInfo) {
+            documentInfo.classList.add(
+                "hidden"
+            );
+        }
 
+        if (documentNameElement) {
+            documentNameElement.textContent =
+                "Document";
+        }
+
+        chatMessages.innerHTML =
+            "";
 
         const messages =
             data.messages || [];
-
 
         if (
             messages.length === 0
@@ -385,9 +454,7 @@ async function loadConversation(
             showWelcomeMessage();
 
             return;
-
         }
-
 
         messages.forEach(
             message => {
@@ -395,27 +462,22 @@ async function loadConversation(
                 let role =
                     message.role;
 
-
                 if (
                     role === "model"
                 ) {
 
-                    role = "assistant";
-
+                    role =
+                        "assistant";
                 }
-
 
                 addMessage(
                     role,
                     message.content
                 );
-
             }
         );
 
-
         await loadRecentChats();
-
 
         messageInput.focus();
 
@@ -426,12 +488,292 @@ async function loadConversation(
             error
         );
 
-
         showError(
             error.message
         );
-
     }
+}
+
+
+// =========================================================
+// Process Stream Event
+// =========================================================
+
+function processStreamEvent(
+    event,
+    assistantMessage
+) {
+
+    // -----------------------------------------------------
+    // Text
+    // -----------------------------------------------------
+
+    if (
+        event.type === "text"
+    ) {
+
+        const text =
+            event.content || "";
+
+        assistantMessage.fullResponse +=
+            text;
+
+        assistantMessage.element.innerHTML =
+            DOMPurify.sanitize(
+                marked.parse(
+                    assistantMessage.fullResponse
+                )
+            );
+
+        scrollToBottom();
+
+        return;
+    }
+
+
+    // -----------------------------------------------------
+    // Image
+    // -----------------------------------------------------
+
+    if (
+        event.type === "image"
+    ) {
+
+        addGeneratedImage(
+            event
+        );
+
+        return;
+    }
+
+
+    // -----------------------------------------------------
+    // Error
+    // -----------------------------------------------------
+
+    if (
+        event.type === "error"
+    ) {
+
+        throw new Error(
+            event.content ||
+            "An error occurred."
+        );
+    }
+}
+
+
+// =========================================================
+// Document Upload
+// =========================================================
+
+async function uploadDocument(file) {
+
+    if (!file) {
+        return;
+    }
+
+    const allowedExtensions = [
+        ".pdf",
+        ".docx",
+        ".txt"
+    ];
+
+    const fileName =
+        file.name.toLowerCase();
+
+    const isAllowed =
+        allowedExtensions.some(
+            extension =>
+                fileName.endsWith(extension)
+        );
+
+    if (!isAllowed) {
+
+        showError(
+            "Only PDF, DOCX and TXT files are supported."
+        );
+
+        return;
+    }
+
+    const formData =
+        new FormData();
+
+    formData.append(
+        "file",
+        file
+    );
+
+    hideError();
+
+    try {
+
+        // Disable pin button while uploading
+        uploadDocumentButton.disabled =
+            true;
+
+        uploadDocumentButton.textContent =
+            "⏳";
+
+        const response =
+            await fetch(
+                "/documents/upload",
+                {
+                    method: "POST",
+                    body: formData
+                }
+            );
+
+        let data = {};
+
+        try {
+
+            data =
+                await response.json();
+
+        } catch {
+
+            data = {};
+        }
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.detail ||
+                "Failed to upload document."
+            );
+        }
+
+        // ---------------------------------------------
+        // Save document information
+        // ---------------------------------------------
+
+        documentId =
+            data.document_id;
+
+        documentName =
+            data.file_name;
+
+        // ---------------------------------------------
+        // Update UI
+        // ---------------------------------------------
+
+        if (documentNameElement) {
+
+            documentNameElement.textContent =
+                documentName;
+        }
+
+        if (documentInfo) {
+
+            documentInfo.classList.remove(
+                "hidden"
+            );
+        }
+
+        console.log(
+            "Document uploaded successfully:",
+            data
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Document upload error:",
+            error
+        );
+
+        showError(
+            error.message ||
+            "Failed to upload document."
+        );
+
+    } finally {
+
+        uploadDocumentButton.disabled =
+            false;
+
+        uploadDocumentButton.textContent =
+            "📎";
+
+        // Reset file input so the same
+        // file can be selected again.
+        documentInput.value = "";
+    }
+}
+
+
+// =========================================================
+// Document Upload Events
+// =========================================================
+
+// Open file picker when the pin button is clicked.
+
+if (
+    uploadDocumentButton &&
+    documentInput
+) {
+
+    uploadDocumentButton.addEventListener(
+        "click",
+        () => {
+
+            documentInput.click();
+        }
+    );
+
+
+    // Handle selected file
+
+    documentInput.addEventListener(
+        "change",
+        () => {
+
+            const file =
+                documentInput.files[0];
+
+            if (file) {
+
+                uploadDocument(file);
+            }
+        }
+    );
+}
+
+
+// =========================================================
+// Remove Document
+// =========================================================
+
+if (
+    removeDocumentButton
+) {
+
+    removeDocumentButton.addEventListener(
+        "click",
+        () => {
+
+            documentId = null;
+
+            documentName = null;
+
+            if (documentInfo) {
+
+                documentInfo.classList.add(
+                    "hidden"
+                );
+            }
+
+            if (documentNameElement) {
+
+                documentNameElement.textContent =
+                    "Document";
+            }
+
+            hideError();
+        }
+    );
 }
 
 
@@ -445,41 +787,30 @@ chatForm.addEventListener(
 
         event.preventDefault();
 
-
         const message =
             messageInput.value.trim();
 
-
         if (!message) {
-
             return;
-
         }
-
 
         hideError();
 
-
-        // Show user message immediately.
         addMessage(
             "user",
             message
         );
 
+        messageInput.value =
+            "";
 
-        // Clear input.
-        messageInput.value = "";
+        sendButton.disabled =
+            true;
 
+        messageInput.disabled =
+            true;
 
-        // Disable input while generating.
-        sendButton.disabled = true;
-
-        messageInput.disabled = true;
-
-
-        // Show typing indicator.
         showTypingIndicator();
-
 
         try {
 
@@ -500,24 +831,24 @@ chatForm.addEventListener(
                                     conversationId,
 
                                 message:
-                                    message
+                                    message,
+
+                                document_id:
+                                    documentId
                             }
                         )
                     }
                 );
-
 
             if (!response.ok) {
 
                 let errorMessageText =
                     "Unable to get a response.";
 
-
                 try {
 
                     const errorData =
                         await response.json();
-
 
                     if (
                         errorData.detail
@@ -525,30 +856,35 @@ chatForm.addEventListener(
 
                         errorMessageText =
                             errorData.detail;
-
                     }
 
                 } catch {
-
                     // Ignore JSON parsing error.
                 }
-
 
                 throw new Error(
                     errorMessageText
                 );
-
             }
-
 
             removeTypingIndicator();
 
 
-            const assistantMessage =
+            const assistantMessageElement =
                 addMessage(
                     "assistant",
                     ""
                 );
+
+
+            const assistantMessage = {
+
+                element:
+                    assistantMessageElement,
+
+                fullResponse:
+                    ""
+            };
 
 
             if (!response.body) {
@@ -556,19 +892,17 @@ chatForm.addEventListener(
                 throw new Error(
                     "Streaming is not supported by the browser."
                 );
-
             }
 
 
             const reader =
                 response.body.getReader();
 
-
             const decoder =
                 new TextDecoder();
 
-
-            let fullResponse = "";
+            let buffer =
+                "";
 
 
             while (true) {
@@ -576,17 +910,15 @@ chatForm.addEventListener(
                 const {
                     value,
                     done
-                } = await reader.read();
-
+                } =
+                    await reader.read();
 
                 if (done) {
-
                     break;
-
                 }
 
 
-                const chunk =
+                buffer +=
                     decoder.decode(
                         value,
                         {
@@ -595,45 +927,64 @@ chatForm.addEventListener(
                     );
 
 
-                fullResponse +=
-                    chunk;
+                const lines =
+                    buffer.split("\n");
 
 
-                assistantMessage.innerHTML =
-                    DOMPurify.sanitize(
-                        marked.parse(
-                            fullResponse
-                        )
+                buffer =
+                    lines.pop();
+
+
+                for (
+                    const line of lines
+                ) {
+
+                    if (
+                        !line.trim()
+                    ) {
+
+                        continue;
+                    }
+
+
+                    const event =
+                        JSON.parse(
+                            line
+                        );
+
+
+                    processStreamEvent(
+                        event,
+                        assistantMessage
                     );
-
-
-                scrollToBottom();
-
+                }
             }
 
 
-            // Process any remaining decoder data.
-            const remainingText =
+            // -------------------------------------------------
+            // Process remaining data
+            // -------------------------------------------------
+
+            buffer +=
                 decoder.decode();
 
 
-            if (remainingText) {
+            if (
+                buffer.trim()
+            ) {
 
-                fullResponse +=
-                    remainingText;
-
-
-                assistantMessage.innerHTML =
-                    DOMPurify.sanitize(
-                        marked.parse(
-                            fullResponse
-                        )
+                const event =
+                    JSON.parse(
+                        buffer
                     );
 
+                processStreamEvent(
+                    event,
+                    assistantMessage
+                );
             }
 
 
-            // Refresh sidebar.
             await loadRecentChats();
 
         } catch (error) {
@@ -643,9 +994,7 @@ chatForm.addEventListener(
                 error
             );
 
-
             removeTypingIndicator();
-
 
             showError(
                 error.message ||
@@ -661,9 +1010,7 @@ chatForm.addEventListener(
                 false;
 
             messageInput.focus();
-
         }
-
     }
 );
 
@@ -678,21 +1025,29 @@ newChatButton.addEventListener(
 
         hideError();
 
-
-        // Generate a new conversation ID.
-        //
-        // IMPORTANT:
-        // We DO NOT delete the previous conversation.
-
         conversationId =
             crypto.randomUUID();
 
+        // Clear document association
+        documentId = null;
 
-        // Clear only the current UI.
+        documentName = null;
+
+        if (documentInfo) {
+
+            documentInfo.classList.add(
+                "hidden"
+            );
+        }
+
+        if (documentNameElement) {
+
+            documentNameElement.textContent =
+                "Document";
+        }
+
         showWelcomeMessage();
 
-
-        // Remove active state from old chats.
         document
             .querySelectorAll(
                 ".recent-chat"
@@ -703,13 +1058,10 @@ newChatButton.addEventListener(
                     button.classList.remove(
                         "active"
                     );
-
                 }
             );
 
-
         messageInput.focus();
-
     }
 );
 
@@ -721,4 +1073,3 @@ newChatButton.addEventListener(
 loadRecentChats();
 
 messageInput.focus();
-

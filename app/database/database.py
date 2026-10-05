@@ -24,12 +24,7 @@ def get_connection():
 
 
 def initialize_database():
-    """
-    Create database tables if they don't exist.
-    """
-
     connection = get_connection()
-
     cursor = connection.cursor()
 
     cursor.execute(
@@ -51,6 +46,8 @@ def initialize_database():
             conversation_id TEXT NOT NULL,
             role TEXT NOT NULL,
             content TEXT NOT NULL,
+            message_type TEXT NOT NULL DEFAULT 'text',
+            metadata TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
             FOREIGN KEY (
@@ -65,5 +62,4 @@ def initialize_database():
     )
 
     connection.commit()
-
     connection.close()

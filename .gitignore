@@ -1,18 +1,30 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
 # Environment files
 .env
+.env.local
+.env.*.local
 
-# Python cache
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Virtual environment
+# Virtual Environments
 venv/
+env/
+.venv/
 .env/
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
 
 # Logs
 *.log
 
+# Project specific databases and generated folders
 chat.db
-
+chroma_db/
+generated_images/
+documents/

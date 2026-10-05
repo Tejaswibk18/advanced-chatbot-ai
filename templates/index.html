@@ -134,10 +134,73 @@
 
             <!-- Input -->
 
+            <!-- Document Information -->
+
+            <div
+                id="document-info"
+                class="document-info hidden"
+            >
+
+                <div class="document-info-content">
+
+                    <span>
+                        📄
+                    </span>
+
+                    <div>
+
+                        <strong id="document-name">
+                            Document
+                        </strong>
+
+                        <small>
+                            Attached to this chat
+                        </small>
+
+                    </div>
+
+                </div>
+
+
+                <button
+                    type="button"
+                    id="remove-document"
+                    title="Remove document"
+                >
+                    ×
+                </button>
+
+            </div>
+
+
+            <!-- Chat Input -->
+
             <form
                 id="chat-form"
                 class="chat-input-area"
             >
+
+                <!-- Upload -->
+
+                <button
+                    type="button"
+                    id="upload-document"
+                    class="upload-button"
+                    title="Upload document"
+                >
+                    📎
+                </button>
+
+
+                <input
+                    type="file"
+                    id="document-input"
+                    accept=".pdf,.docx,.txt"
+                    hidden
+                >
+
+
+                <!-- Message -->
 
                 <input
                     type="text"
@@ -145,6 +208,9 @@
                     placeholder="Ask anything..."
                     autocomplete="off"
                 >
+
+
+                <!-- Send -->
 
                 <button
                     type="submit"

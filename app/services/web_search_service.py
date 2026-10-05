@@ -24,7 +24,7 @@ def web_search(
     response = tavily_client.search(
         query=query,
         max_results=5
-    )
+    ) 
 
     results = []
 

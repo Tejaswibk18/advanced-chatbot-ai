@@ -14,6 +14,14 @@ class ChatRequest(BaseModel):
         description="Unique ID of the conversation"
     )
 
+    document_id: str | None = Field(
+        default=None,
+        description=(
+            "ID of the document currently "
+            "associated with this conversation"
+        )
+    )
+
 
 class ChatResponse(BaseModel):
     conversation_id: str

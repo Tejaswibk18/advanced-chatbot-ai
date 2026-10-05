@@ -587,3 +587,115 @@ body {
 
 }
 
+/* =========================================================
+   Generated Images
+   ========================================================= */
+
+.generated-image-wrapper {
+    margin-top: 8px;
+    max-width: 600px;
+}
+
+.generated-image {
+    display: block;
+    width: 100%;
+    max-width: 600px;
+    height: auto;
+    border-radius: 12px;
+    cursor: pointer;
+}
+
+/* =========================================================
+   Document Attachment
+   ========================================================= */
+
+.document-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    margin: 0 20px 8px 20px;
+    padding: 10px 14px;
+
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+
+    background: #f9fafb;
+}
+
+
+.document-info.hidden {
+    display: none;
+}
+
+
+.document-info-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+
+.document-info-content span {
+    font-size: 20px;
+}
+
+
+.document-info-content strong {
+    display: block;
+    font-size: 14px;
+}
+
+
+.document-info-content small {
+    display: block;
+    margin-top: 2px;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+
+#remove-document {
+    border: none;
+    background: transparent;
+
+    font-size: 22px;
+
+    color: #6b7280;
+
+    cursor: pointer;
+
+    padding: 3px 8px;
+
+    border-radius: 6px;
+}
+
+
+#remove-document:hover {
+    background: #e5e7eb;
+}
+
+
+.upload-button {
+    border: none;
+    background: transparent;
+
+    font-size: 20px;
+
+    cursor: pointer;
+
+    padding: 8px;
+
+    flex-shrink: 0;
+}
+
+
+.upload-button:hover {
+    opacity: 0.7;
+}
+
+
+.upload-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}

@@ -1,11 +1,9 @@
 from fastapi import APIRouter, HTTPException
-
 from fastapi.responses import StreamingResponse
 
-from app.schemas.chat import (
-    ChatRequest,
-    ChatResponse
-)
+import json
+
+from app.schemas.chat import ChatRequest, ChatResponse
 
 from app.services.llm_service import (
     generate_response,
@@ -23,14 +21,12 @@ router = APIRouter(
 )
 
 
-chat_history_service = (
-    ChatHistoryService()
-)
+chat_history_service = ChatHistoryService()
 
 
-# ---------------------------------------------------------
-# Send message
-# ---------------------------------------------------------
+# =========================================================
+# Normal Chat
+# =========================================================
 
 @router.post(
     "/",
@@ -46,7 +42,6 @@ async def chat(
             request.conversation_id
         )
 
-        # Get previous messages.
         history = (
             chat_history_service
             .get_messages(
@@ -54,14 +49,12 @@ async def chat(
             )
         )
 
-        # Generate response.
         response = generate_response(
             message=request.message,
-            history=history
+            history=history,
+            document_id=request.document_id
         )
 
-        # Create conversation if this
-        # is the first message.
         if not history:
 
             title = request.message[:50]
@@ -71,14 +64,20 @@ async def chat(
                 title=title
             )
 
-        # Save user message.
+        # -------------------------------------------------
+        # Save user message
+        # -------------------------------------------------
+
         chat_history_service.add_message(
             conversation_id=conversation_id,
             role="user",
             content=request.message
         )
 
-        # Save assistant response.
+        # -------------------------------------------------
+        # Save model response
+        # -------------------------------------------------
+
         chat_history_service.add_message(
             conversation_id=conversation_id,
             role="model",
@@ -101,13 +100,11 @@ async def chat(
         )
 
 
-# ---------------------------------------------------------
-# Streaming chat
-# ---------------------------------------------------------
+# =========================================================
+# Streaming Chat
+# =========================================================
 
-@router.post(
-    "/stream"
-)
+@router.post("/stream")
 async def chat_stream(
     request: ChatRequest
 ):
@@ -123,28 +120,59 @@ async def chat_stream(
         )
     )
 
-    generated_chunks = []
-
     def stream():
+
+        generated_text = ""
 
         try:
 
-            for chunk in generate_stream(
+            # -------------------------------------------------
+            # Generate AI response
+            # -------------------------------------------------
+
+            for event in generate_stream(
                 message=request.message,
-                history=history
+                history=history,
+                document_id=request.document_id
             ):
 
-                generated_chunks.append(
-                    chunk
-                )
+                # ---------------------------------------------
+                # Text event
+                # ---------------------------------------------
 
-                yield chunk
+                if event["type"] == "text":
 
-            complete_response = "".join(
-                generated_chunks
-            )
+                    text = event["content"]
 
-            # Create conversation if needed.
+                    generated_text += text
+
+                    yield (
+                        json.dumps(
+                            {
+                                "type": "text",
+                                "content": text
+                            }
+                        )
+                        + "\n"
+                    )
+
+                # ---------------------------------------------
+                # Image event
+                # ---------------------------------------------
+
+                elif event["type"] == "image":
+
+                    yield (
+                        json.dumps(
+                            event
+                        )
+                        + "\n"
+                    )
+
+            # -------------------------------------------------
+            # Create conversation if new
+            # -------------------------------------------------
+
             if not history:
 
                 title = request.message[:50]
@@ -154,39 +182,64 @@ async def chat_stream(
                     title=title
                 )
 
-            # Save user message.
+            # -------------------------------------------------
+            # Save user message
+            # -------------------------------------------------
+
             chat_history_service.add_message(
                 conversation_id=conversation_id,
                 role="user",
                 content=request.message
             )
 
-            # Save assistant message.
-            chat_history_service.add_message(
-                conversation_id=conversation_id,
-                role="model",
-                content=complete_response
+            # -------------------------------------------------
+            # Save model response
+            # -------------------------------------------------
+
+            if generated_text.strip():
+
+                chat_history_service.add_message(
+                    conversation_id=conversation_id,
+                    role="model",
+                    content=generated_text
+                )
+
+            # -------------------------------------------------
+            # End event
+            # -------------------------------------------------
+
+            yield (
+                json.dumps(
+                    {
+                        "type": "done"
+                    }
+                )
+                + "\n"
             )
 
         except Exception as error:
 
             yield (
-                f"\n\n[ERROR] {error}"
+                json.dumps(
+                    {
+                        "type": "error",
+                        "content": str(error)
+                    }
+                )
+                + "\n"
             )
 
     return StreamingResponse(
         stream(),
-        media_type="text/plain"
+        media_type="application/x-ndjson"
     )
 
 
-# ---------------------------------------------------------
-# Get recent chats
-# ---------------------------------------------------------
+# =========================================================
+# Recent Chats
+# =========================================================
 
-@router.get(
-    "/recent"
-)
+@router.get("/recent")
 async def recent_chats():
 
     return {
@@ -196,13 +249,11 @@ async def recent_chats():
     }
 
 
-# ---------------------------------------------------------
-# Get previous conversation
-# ---------------------------------------------------------
+# =========================================================
+# Get Conversation
+# =========================================================
 
-@router.get(
-    "/{conversation_id}"
-)
+@router.get("/{conversation_id}")
 async def get_conversation(
     conversation_id: str
 ):
@@ -222,9 +273,6 @@ async def get_conversation(
         )
 
     return {
-        "conversation_id":
-            conversation_id,
-
-        "messages":
-            messages
+        "conversation_id": conversation_id,
+        "messages": messages
     }
