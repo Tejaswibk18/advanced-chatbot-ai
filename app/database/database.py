@@ -1,12 +1,14 @@
+import os
 import sqlite3
 
 from pathlib import Path
 
 
-# Project root directory
-BASE_DIR = Path(__file__).resolve().parents[2]
+# Use DATA_DIR env variable if set (e.g. Render persistent disk at /data),
+# otherwise fall back to the project root for local development.
+DATA_DIR = Path(os.environ.get("DATA_DIR", Path(__file__).resolve().parents[2]))
 
-DATABASE_PATH = BASE_DIR / "chat.db"
+DATABASE_PATH = DATA_DIR / "chat.db"
 
 
 def get_connection():

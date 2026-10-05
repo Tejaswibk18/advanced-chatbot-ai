@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from huggingface_hub import InferenceClient
@@ -24,10 +25,12 @@ IMAGE_MODEL = (
 )
 
 
-BASE_DIR = Path(__file__).resolve().parents[2]
+# Use DATA_DIR env variable if set (e.g. Render persistent disk at /data),
+# otherwise fall back to the project root for local development.
+DATA_DIR = Path(os.environ.get("DATA_DIR", Path(__file__).resolve().parents[2]))
 
 GENERATED_IMAGES_DIR = (
-    BASE_DIR / "generated_images"
+    DATA_DIR / "generated_images"
 )
 
 

@@ -1,12 +1,15 @@
+import os
 from pathlib import Path
 
 import pymupdf 
 from docx import Document
 
 
-BASE_DIR = Path(__file__).resolve().parents[2]
+# Use DATA_DIR env variable if set (e.g. Render persistent disk at /data),
+# otherwise fall back to the project root for local development.
+DATA_DIR = Path(os.environ.get("DATA_DIR", Path(__file__).resolve().parents[2]))
 
-DOCUMENTS_DIR = BASE_DIR / "documents"
+DOCUMENTS_DIR = DATA_DIR / "documents"
 
 DOCUMENTS_DIR.mkdir(
     exist_ok=True

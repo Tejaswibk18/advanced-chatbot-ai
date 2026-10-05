@@ -1,12 +1,15 @@
+import os
 from pathlib import Path
 
 import chromadb
 from sentence_transformers import SentenceTransformer
 
 
-BASE_DIR = Path(__file__).resolve().parents[2]
+# Use DATA_DIR env variable if set (e.g. Render persistent disk at /data),
+# otherwise fall back to the project root for local development.
+DATA_DIR = Path(os.environ.get("DATA_DIR", Path(__file__).resolve().parents[2]))
 
-CHROMA_DB_DIR = BASE_DIR / "chroma_db"
+CHROMA_DB_DIR = DATA_DIR / "chroma_db"
 
 
 # Persistent ChromaDB client
