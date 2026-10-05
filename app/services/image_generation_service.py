@@ -35,6 +35,7 @@ GENERATED_IMAGES_DIR = (
 
 
 GENERATED_IMAGES_DIR.mkdir(
+    parents=True,
     exist_ok=True
 )
 

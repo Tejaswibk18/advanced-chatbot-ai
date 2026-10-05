@@ -12,6 +12,7 @@ DATA_DIR = Path(os.environ.get("DATA_DIR", Path(__file__).resolve().parents[2]))
 DOCUMENTS_DIR = DATA_DIR / "documents"
 
 DOCUMENTS_DIR.mkdir(
+    parents=True,
     exist_ok=True
 )
 
