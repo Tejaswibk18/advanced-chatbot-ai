@@ -1,5 +1,6 @@
-import os
-from pathlib import Path
+import base64
+import io
+import uuid
 
 from huggingface_hub import InferenceClient
 
@@ -25,21 +26,6 @@ IMAGE_MODEL = (
 )
 
 
-# Use DATA_DIR env variable if set (e.g. Render persistent disk at /data),
-# otherwise fall back to the project root for local development.
-DATA_DIR = Path(os.environ.get("DATA_DIR", Path(__file__).resolve().parents[2]))
-
-GENERATED_IMAGES_DIR = (
-    DATA_DIR / "generated_images"
-)
-
-
-GENERATED_IMAGES_DIR.mkdir(
-    parents=True,
-    exist_ok=True
-)
-
-
 # =========================================================
 # Image Generation
 # =========================================================
@@ -48,8 +34,9 @@ def generate_image(
     prompt: str
 ) -> dict:
     """
-    Generate an image using Hugging Face
-    and save it locally.
+    Generate an image using Hugging Face and
+    return it as a base64 data URL.
+    No disk writes required.
     """
 
     image = client.text_to_image(
@@ -57,36 +44,21 @@ def generate_image(
         model=IMAGE_MODEL
     )
 
-    # Generate a simple unique filename.
-    existing_images = list(
-        GENERATED_IMAGES_DIR.glob(
-            "generated_*.png"
-        )
-    )
+    # Save image to an in-memory buffer
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    buffer.seek(0)
 
-    image_number = (
-        len(existing_images) + 1
-    )
+    # Encode as base64 data URL
+    image_b64 = base64.b64encode(
+        buffer.read()
+    ).decode("utf-8")
 
-    file_name = (
-        f"generated_{image_number}.png"
-    )
-
-    file_path = (
-        GENERATED_IMAGES_DIR / file_name
-    )
-
-    image.save(
-        file_path
-    )
+    data_url = f"data:image/png;base64,{image_b64}"
 
     return {
         "type": "image",
-        "file_name": file_name,
-        "url": (
-            f"/generated-images/"
-            f"{file_name}"
-        ),
+        "url": data_url,
         "prompt": prompt,
         "model": IMAGE_MODEL
     }

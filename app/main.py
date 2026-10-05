@@ -23,11 +23,6 @@ app.mount(
 )
 
 
-app.mount(
-    "/generated-images",
-    StaticFiles(directory="generated_images"),
-    name="generated-images"
-)
 
 templates = Jinja2Templates(
     directory="templates"

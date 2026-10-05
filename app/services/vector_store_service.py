@@ -1,22 +1,10 @@
-import os
-from pathlib import Path
-
 import chromadb
 from sentence_transformers import SentenceTransformer
 
 
-# Use DATA_DIR env variable if set (e.g. Render persistent disk at /data),
-# otherwise fall back to the project root for local development.
-DATA_DIR = Path(os.environ.get("DATA_DIR", Path(__file__).resolve().parents[2]))
-
-CHROMA_DB_DIR = DATA_DIR / "chroma_db"
-
-
-# Persistent ChromaDB client
-chroma_client = chromadb.PersistentClient(
-    path=str(CHROMA_DB_DIR)
-)
-
+# In-memory ChromaDB client.
+# Data is reset when the server restarts — users need to re-upload documents.
+chroma_client = chromadb.EphemeralClient()
 
 # Collection where document chunks are stored
 collection = chroma_client.get_or_create_collection(

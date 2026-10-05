@@ -8,7 +8,6 @@ from fastapi import (
 )
 
 from app.services.document_service import (
-    save_document,
     extract_text
 )
 
@@ -74,18 +73,10 @@ async def upload_document(
         )
 
     try:
-        # Generate unique ID for this document
-        document_id = str(uuid4())
-
-        # Save uploaded document
-        file_path = save_document(
+        # Extract text directly from file bytes (no disk write)
+        text = extract_text(
             file.filename,
             file_content
-        )
-
-        # Extract text
-        text = extract_text(
-            file_path
         )
 
         if not text.strip():
@@ -113,6 +104,7 @@ async def upload_document(
 
         # Generate embeddings and store
         # chunks in ChromaDB
+        document_id = str(uuid4())
         stored_chunks = store_document_chunks(
             document_id=document_id,
             file_name=file.filename,

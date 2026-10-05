@@ -1,48 +1,20 @@
-import os
+import io
 from pathlib import Path
 
-import pymupdf 
+import pymupdf
 from docx import Document
 
 
-# Use DATA_DIR env variable if set (e.g. Render persistent disk at /data),
-# otherwise fall back to the project root for local development.
-DATA_DIR = Path(os.environ.get("DATA_DIR", Path(__file__).resolve().parents[2]))
-
-DOCUMENTS_DIR = DATA_DIR / "documents"
-
-DOCUMENTS_DIR.mkdir(
-    parents=True,
-    exist_ok=True
-)
-
-
-def save_document(
-    file_name: str,
-    file_content: bytes
-) -> Path:
-    """
-    Save an uploaded document locally.
-    """
-
-    file_path = DOCUMENTS_DIR / file_name
-
-    file_path.write_bytes(
-        file_content
-    )
-
-    return file_path
-
-
 def extract_pdf_text(
-    file_path: Path
+    file_content: bytes
 ) -> str:
     """
-    Extract text from a PDF file.
+    Extract text from a PDF file in memory.
     """
 
     document = pymupdf.open(
-        file_path
+        stream=file_content,
+        filetype="pdf"
     )
 
     pages = []
@@ -59,14 +31,14 @@ def extract_pdf_text(
 
 
 def extract_docx_text(
-    file_path: Path
+    file_content: bytes
 ) -> str:
     """
-    Extract text from a DOCX file.
+    Extract text from a DOCX file in memory.
     """
 
     document = Document(
-        file_path
+        io.BytesIO(file_content)
     )
 
     paragraphs = []
@@ -81,42 +53,41 @@ def extract_docx_text(
 
 
 def extract_txt_text(
-    file_path: Path
+    file_content: bytes
 ) -> str:
     """
-    Extract text from a TXT file.
+    Extract text from a TXT file in memory.
     """
 
-    return file_path.read_text(
-        encoding="utf-8"
-    )
+    return file_content.decode("utf-8")
 
 
 def extract_text(
-    file_path: Path
+    file_name: str,
+    file_content: bytes
 ) -> str:
     """
-    Extract text based on
-    document extension.
+    Extract text based on file extension.
+    Works entirely in memory — no disk writes.
     """
 
     extension = (
-        file_path.suffix.lower()
+        Path(file_name).suffix.lower()
     )
 
     if extension == ".pdf":
         return extract_pdf_text(
-            file_path
+            file_content
         )
 
     if extension == ".docx":
         return extract_docx_text(
-            file_path
+            file_content
         )
 
     if extension == ".txt":
         return extract_txt_text(
-            file_path
+            file_content
         )
 
     raise ValueError(
