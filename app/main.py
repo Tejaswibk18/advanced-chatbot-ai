@@ -3,8 +3,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.database.database import initialize_database
-from app.routes.chat import router as chat_router 
+from app.routes.chat import router as chat_router
 from app.routes.documents import router as documents_router
+from app.routes.agent import router as agent_router
 
 initialize_database()
 
@@ -23,6 +24,11 @@ app.mount(
 )
 
 
+app.mount(
+    "/generated-images",
+    StaticFiles(directory="generated_images"),
+    name="generated-images"
+)
 
 templates = Jinja2Templates(
     directory="templates"
@@ -35,6 +41,10 @@ app.include_router(
 
 app.include_router(
     documents_router
+)
+
+app.include_router(
+    agent_router
 )
 
 

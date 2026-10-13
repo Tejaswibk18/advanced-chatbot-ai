@@ -1,7 +1,14 @@
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
+"""
+Chat Route — updated for Phase 6 (memory-aware)
+
+Uses get_memory_context() to provide short-term conversation memory
+to the LLM on every request, instead of the raw full history.
+"""
 
 import json
+
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 
 from app.schemas.chat import ChatRequest, ChatResponse
 
@@ -42,27 +49,26 @@ async def chat(
             request.conversation_id
         )
 
+        # Phase 6 — memory-aware context for LLM
         history = (
             chat_history_service
-            .get_messages(
+            .get_memory_context(
                 conversation_id
             )
         )
+
+        if not history:
+            title = request.message[:50]
+            chat_history_service.create_conversation(
+                conversation_id=conversation_id,
+                title=title
+            )
 
         response = generate_response(
             message=request.message,
             history=history,
             document_id=request.document_id
         )
-
-        if not history:
-
-            title = request.message[:50]
-
-            chat_history_service.create_conversation(
-                conversation_id=conversation_id,
-                title=title
-            )
 
         # -------------------------------------------------
         # Save user message
@@ -71,7 +77,8 @@ async def chat(
         chat_history_service.add_message(
             conversation_id=conversation_id,
             role="user",
-            content=request.message
+            content=request.message,
+            message_type="text"
         )
 
         # -------------------------------------------------
@@ -81,7 +88,8 @@ async def chat(
         chat_history_service.add_message(
             conversation_id=conversation_id,
             role="model",
-            content=response
+            content=response,
+            message_type="text"
         )
 
         return ChatResponse(
@@ -113,12 +121,20 @@ async def chat_stream(
         request.conversation_id
     )
 
+    # Phase 6 — memory-aware context
     history = (
         chat_history_service
-        .get_messages(
+        .get_memory_context(
             conversation_id
         )
     )
+
+    if not history:
+        title = request.message[:50]
+        chat_history_service.create_conversation(
+            conversation_id=conversation_id,
+            title=title
+        )
 
     def stream():
 
@@ -126,24 +142,15 @@ async def chat_stream(
 
         try:
 
-            # -------------------------------------------------
-            # Generate AI response
-            # -------------------------------------------------
-
             for event in generate_stream(
                 message=request.message,
                 history=history,
                 document_id=request.document_id
             ):
 
-                # ---------------------------------------------
-                # Text event
-                # ---------------------------------------------
-
                 if event["type"] == "text":
 
                     text = event["content"]
-
                     generated_text += text
 
                     yield (
@@ -156,31 +163,12 @@ async def chat_stream(
                         + "\n"
                     )
 
-                # ---------------------------------------------
-                # Image event
-                # ---------------------------------------------
-
                 elif event["type"] == "image":
 
                     yield (
-                        json.dumps(
-                            event
-                        )
+                        json.dumps(event)
                         + "\n"
                     )
-
-            # -------------------------------------------------
-            # Create conversation if new
-            # -------------------------------------------------
-
-            if not history:
-
-                title = request.message[:50]
-
-                chat_history_service.create_conversation(
-                    conversation_id=conversation_id,
-                    title=title
-                )
 
             # -------------------------------------------------
             # Save user message
@@ -189,7 +177,8 @@ async def chat_stream(
             chat_history_service.add_message(
                 conversation_id=conversation_id,
                 role="user",
-                content=request.message
+                content=request.message,
+                message_type="text"
             )
 
             # -------------------------------------------------
@@ -201,19 +190,12 @@ async def chat_stream(
                 chat_history_service.add_message(
                     conversation_id=conversation_id,
                     role="model",
-                    content=generated_text
+                    content=generated_text,
+                    message_type="text"
                 )
-
-            # -------------------------------------------------
-            # End event
-            # -------------------------------------------------
 
             yield (
-                json.dumps(
-                    {
-                        "type": "done"
-                    }
-                )
+                json.dumps({"type": "done"})
                 + "\n"
             )
 
@@ -250,7 +232,7 @@ async def recent_chats():
 
 
 # =========================================================
-# Get Conversation
+# Get Conversation Messages
 # =========================================================
 
 @router.get("/{conversation_id}")
@@ -275,4 +257,32 @@ async def get_conversation(
     return {
         "conversation_id": conversation_id,
         "messages": messages
+    }
+
+
+# =========================================================
+# Delete Conversation (Phase 6)
+# =========================================================
+
+@router.delete("/{conversation_id}")
+async def delete_conversation(
+    conversation_id: str
+):
+
+    deleted = (
+        chat_history_service
+        .delete_conversation(
+            conversation_id
+        )
+    )
+
+    if not deleted:
+        raise HTTPException(
+            status_code=404,
+            detail="Conversation not found."
+        )
+
+    return {
+        "message": "Conversation deleted.",
+        "conversation_id": conversation_id
     }
