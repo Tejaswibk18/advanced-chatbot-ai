@@ -12,10 +12,18 @@ collection = chroma_client.get_or_create_collection(
 )
 
 
-# Local embedding model
-embedding_model = SentenceTransformer(
-    "all-MiniLM-L6-v2"
-)
+# Lazy-loaded embedding model (deferred to first use to avoid
+# startup OOM and port-binding timeout on Render)
+_embedding_model = None
+
+
+def _get_embedding_model() -> SentenceTransformer:
+    global _embedding_model
+    if _embedding_model is None:
+        _embedding_model = SentenceTransformer(
+            "all-MiniLM-L6-v2"
+        )
+    return _embedding_model
 
 
 def create_embeddings(
@@ -25,7 +33,7 @@ def create_embeddings(
     Convert text chunks into embeddings.
     """
 
-    embeddings = embedding_model.encode(
+    embeddings = _get_embedding_model().encode(
         texts
     )
 
